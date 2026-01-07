@@ -1,44 +1,27 @@
-name: Package Splunk UI Apps for Splunk Cloud
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
-
 jobs:
-  package:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Package each Splunk app
-        run: |
-          set -euo pipefail
-
-          mkdir -p dist
-
-          for app in */ ; do
-            app="${app%/}"
-
-            case "$app" in
-              .github|dist)
-                continue
-                ;;
-            esac
-
-            echo "Packaging app: $app"
-
-            rm -rf "$app/.git" "$app/.github" || true
-            find "$app" -name "__pycache__" -type d -exec rm -rf {} + || true
-            find "$app" -name "*.pyc" -delete || true
-            find "$app" -name ".DS_Store" -delete || true
-
-            tar -czf "dist/${app}.tgz" "$app"
-          done
-
-      - name: Upload packaged apps
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v5
+      - id: build_app
+        uses: VatsalJagani/splunk-app-action@v5
         with:
-          name: splunk-cloud-ui-apps
-          path: dist/*.tgz
+          app_dir: "my_app"
+      
+      - name: Display build info
+        run: |
+          echo "Build created: ${{ steps.build_app.outputs.artifact_name }}"
+          echo "App ID: ${{ steps.build_app.outputs.app_package_id }}"
+          echo "Version: ${{ steps.build_app.outputs.app_version }}"
+          echo "Build number: ${{ steps.build_app.outputs.app_build_number }}"
+          echo "Build path: ${{ steps.build_app.outputs.build_path }}"
+          echo "App Inspect: ${{ steps.build_app.outputs.app_inspect_status }}"
+          echo "Cloud Inspect: ${{ steps.build_app.outputs.cloud_inspect_status }}"
+          echo "SSAI Inspect: ${{ steps.build_app.outputs.ssai_inspect_status }}"
+      
+      - name: Upload to release
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v5
+        with:
+          name: splunk-app-${{ steps.build_app.outputs.app_version }}
+          path: ${{ steps.build_app.outputs.build_path }}
