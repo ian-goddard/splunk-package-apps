@@ -1,40 +1,71 @@
-name: build-test-release
+name: Package Splunk App for Splunk Cloud
 
 on:
   push:
-    branches:
-      - main
-      - dev
-    tags:
-      - 'v*'
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      APP_NAME: my_splunk_app
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
-      
-      - name: Create subfolder
-        run: mkdir my-package
+        uses: actions/checkout@v4
 
-      - name: Install UCC
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Splunk AppInspect
         run: |
-          pip install splunk-add-on-ucc-framework
-          pip install splunk-packaging-toolkit
+          pip install splunk-appinspect
 
-      - name: Build an app using UCC
-        run: ucc-gen build
+      - name: Run Splunk AppInspect (Cloud Mode)
+        run: |
+          splunk-appinspect inspect \
+            . \
+            --mode splunkcloud \
+            --included-tags cloud \
+            --output-file appinspect-report.json
 
-      - name: Create tmp folder
-        run: mkdir app-dir
-      
-      - name: Create package
-        run: ucc-gen package --path output/splunk-package-apps -o app-dir/
-      
-      - name: Upload package
+      - name: Fail if AppInspect errors found
+        run: |
+          ERRORS=$(jq '.summary.error' appinspect-report.json)
+          if [ "$ERRORS" != "0" ]; then
+            echo "AppInspect found $ERRORS errors"
+            exit 1
+          fi
+
+      - name: Clean app for packaging
+        run: |
+          rm -rf .git
+          rm -rf .github
+          find . -name "__pycache__" -type d -exec rm -rf {} +
+          find . -name "*.pyc" -delete
+          find . -name ".DS_Store" -delete
+
+      - name: Create Splunk Cloud package
+        run: |
+          mkdir -p dist
+          tar --exclude='./dist' \
+              --exclude='./appinspect-report.json' \
+              -czf dist/${APP_NAME}.tgz \
+              .
+
+      - name: Upload packaged app
         uses: actions/upload-artifact@v4
         with:
-          name: my-package
-          path: app-dir/
+          name: splunk-cloud-app
+          path: dist/${APP_NAME}.tgz
+
+      - name: Upload AppInspect report
+        uses: actions/upload-artifact@v4
+        with:
+          name: appinspect-report
+          path: appinspect-report.json
