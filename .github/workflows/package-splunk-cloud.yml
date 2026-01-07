@@ -1,4 +1,4 @@
-name: Package Splunk UI App for Splunk Cloud
+name: Package Splunk UI Apps for Splunk Cloud
 
 on:
   workflow_dispatch:
@@ -9,30 +9,20 @@ jobs:
   package:
     runs-on: ubuntu-latest
 
-    env:
-      APP_NAME: my_splunk_ui_app
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare clean app directory
-        run: |
-          rm -rf .git .github
-          find . -name "__pycache__" -type d -exec rm -rf {} +
-          find . -name "*.pyc" -delete
-          find . -name ".DS_Store" -delete
+      - name: Create dist directory
+        run: mkdir -p dist
 
-      - name: Create Splunk Cloud package
+      - name: Package each Splunk app
+        shell: bash
         run: |
-          mkdir -p dist
-          tar \
-            --exclude='./dist' \
-            -czf dist/${APP_NAME}.tgz \
-            .
+          set -e
 
-      - name: Upload packaged app
-        uses: actions/upload-artifact@v4
-        with:
-          name: splunk-cloud-ui-app
-          path: dist/${{ env.APP_NAME }}.tgz
+          for app in */; do
+            app=${app%/}
+
+            # Skip non-app directories
+            if [[ "$app" == ".github" || "$app" == "dist" ]]; then
