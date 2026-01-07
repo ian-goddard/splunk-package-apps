@@ -1,5 +1,5 @@
-name: Package Changed Splunk Apps for Splunk Cloud
 
+name: Package Changed Splunk Apps for Splunk Cloud
 on:
   push:
     branches: [main]
@@ -11,12 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      # 2️⃣ Determine changed apps
       - name: Determine changed apps
         id: changed
         run: |
@@ -30,7 +28,6 @@ jobs:
           echo "Changed apps: $CHANGED_APPS"
           echo "changed_apps=$CHANGED_APPS" >> $GITHUB_OUTPUT
 
-      # 3️⃣ Package changed apps as .tgz
       - name: Package changed apps
         run: |
           mkdir -p dist
@@ -43,25 +40,13 @@ jobs:
             find "$app" -name "*.pyc" -delete
             find "$app" -name ".DS_Store" -delete
 
-            # Package folder itself
+            # Important: package the folder itself, not its contents
             tar czf ./dist/${app}.tgz "$app"
             echo "Packaged $app -> dist/${app}.tgz"
           done
 
-      # 4️⃣ Create a temporary GitHub release
-      - name: Create release
-        id: release
-        uses: ncipollo/release-action@v1
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tag: "splunk-packages-${{ github.run_number }}"
-          name: "Splunk Packages ${{ github.run_number }}"
-          body: "Packages of changed Splunk apps for run ${{ github.run_number }}"
-          draft: true
-
-      # 5️⃣ Upload .tgz files to the release
-      - name: Upload tgz files to release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: dist/*.tgz
-          tag: "splunk-packages-${{ github.run_number }}"
-          draft: false
+          name: changed-apps-packages
+          path: dist/*.tgz
