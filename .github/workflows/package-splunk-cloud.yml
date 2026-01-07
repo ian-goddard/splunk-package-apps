@@ -1,4 +1,4 @@
-name: Package Changed Splunk Apps
+name: Package Changed Splunk Apps for Splunk Cloud
 on:
   push:
     branches: [main]
@@ -10,31 +10,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # Needed to compare with previous commit
+          fetch-depth: 0
 
-      # 2️⃣ Determine changed top-level directories
       - name: Determine changed apps
         id: changed
         run: |
-          echo "Detecting changed top-level directories..."
           CHANGED_DIRS=$(git diff --name-only HEAD^ HEAD | awk -F/ '{print $1}' | sort -u)
-          echo "Changed directories: $CHANGED_DIRS"
-
-          # Keep only existing directories and exclude non-app folders
           CHANGED_APPS=""
           for dir in $CHANGED_DIRS; do
             if [ -d "$dir" ] && [[ "$dir" != ".github" && "$dir" != "dist" ]]; then
               CHANGED_APPS="$CHANGED_APPS $dir"
             fi
           done
-
-          echo "Packaging apps: $CHANGED_APPS"
+          echo "Changed apps: $CHANGED_APPS"
           echo "changed_apps=$CHANGED_APPS" >> $GITHUB_OUTPUT
 
-      # 3️⃣ Package each changed app
       - name: Package changed apps
         run: |
           mkdir -p dist
@@ -47,13 +39,12 @@ jobs:
             find "$app" -name "*.pyc" -delete
             find "$app" -name ".DS_Store" -delete
 
-            # Package with the exact same name as the app
+            # Important: package the folder itself, not its contents
             tar -czf dist/${app}.tgz "$app"
             echo "Packaged $app -> dist/${app}.tgz"
           done
 
-      # 4️⃣ Upload each package as artifact
-      - name: Upload packaged apps
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: changed-apps-packages
