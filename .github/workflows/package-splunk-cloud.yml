@@ -1,11 +1,16 @@
-name: Build My Splunk App
+name: Multi-App Build
 on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: ["my_splunk_app", "my_splunk_addon", "another_app"]
     steps:
       - uses: actions/checkout@v5
       - uses: VatsalJagani/splunk-app-action@v5
         with:
-          app_dir: "my_app"
+          app_dir: ${{ matrix.app }}
+          splunkbase_username: ${{ secrets.SPLUNKBASE_USERNAME }}
+          splunkbase_password: ${{ secrets.SPLUNKBASE_PASSWORD }}
