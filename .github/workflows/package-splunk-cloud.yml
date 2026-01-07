@@ -1,36 +1,13 @@
-name: Multi-App Build
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+name: Build and Inspect
+on: [push]
 
 jobs:
-  package:
+  build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        app: ["my_splunk_app", "my_splunk_addon", "another_app"]
     steps:
-      # 1️⃣ Checkout the repo
       - uses: actions/checkout@v5
-
-      # 2️⃣ Clean up unnecessary files
-      - name: Clean non-Splunk files
-        run: |
-          rm -rf ${{ matrix.app }}/.git ${{ matrix.app }}/.github
-          find ${{ matrix.app }} -name "__pycache__" -type d -exec rm -rf {} +
-          find ${{ matrix.app }} -name "*.pyc" -delete
-          find ${{ matrix.app }} -name ".DS_Store" -delete
-
-      # 3️⃣ Package the app for Splunk Cloud
-      - name: Create package
-        run: |
-          mkdir -p dist
-          tar -czf dist/${{ matrix.app }}.tgz ${{ matrix.app }}
-
-      # 4️⃣ Upload artifact for CI download
-      - name: Upload packaged app
-        uses: actions/upload-artifact@v4
+      - uses: VatsalJagani/splunk-app-action@v5
         with:
-          name: ${{ matrix.app }}-package
-          path: dist/${{ matrix.app }}.tgz
+          app_dir: "my_app"
+          splunkbase_username: ${{ secrets.SPLUNKBASE_USERNAME }}
+          splunkbase_password: ${{ secrets.SPLUNKBASE_PASSWORD }}
