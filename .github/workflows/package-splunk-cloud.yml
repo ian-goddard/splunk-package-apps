@@ -40,7 +40,7 @@ jobs:
             find "$app" -name ".DS_Store" -delete
 
             # Important: package the folder itself, not its contents
-            tar -czf dist/${app}.tgz "$app"
+            tar czf dist/${app}.tgz "$app"
             echo "Packaged $app -> dist/${app}.tgz"
           done
 
