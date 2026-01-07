@@ -1,9 +1,57 @@
-name: Build My Splunk App
-on: [push]
+name: Package Changed Splunk Apps
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  build:
+  package-changed-apps:
     runs-on: ubuntu-latest
+
     steps:
+      # 1️⃣ Checkout code
       - uses: actions/checkout@v5
-      - uses: VatsalJagani/splunk-app-action@v5
+        with:
+          fetch-depth: 0  # Needed to compare with previous commits
+
+      # 2️⃣ Detect changed top-level directories
+      - name: Determine changed apps
+        id: changed
+        run: |
+          echo "Detecting changed top-level directories..."
+          CHANGED_DIRS=$(git diff --name-only HEAD^ HEAD | awk -F/ '{print $1}' | sort -u)
+          echo "Changed directories: $CHANGED_DIRS"
+
+          # Only keep directories that exist (avoid deleted dirs)
+          CHANGED_APPS=""
+          for dir in $CHANGED_DIRS; do
+            if [ -d "$dir" ]; then
+              CHANGED_APPS="$CHANGED_APPS $dir"
+            fi
+          done
+
+          echo "Packaging apps: $CHANGED_APPS"
+          echo "changed_apps=$CHANGED_APPS" >> $GITHUB_OUTPUT
+
+      # 3️⃣ Package each changed app
+      - name: Package changed apps
+        run: |
+          mkdir -p dist
+          for app in ${{ steps.changed.outputs.changed_apps }}; do
+            echo "Packaging $app..."
+            # Clean unwanted files
+            rm -rf $app/.git $app/.github
+            find $app -name "__pycache__" -type d -exec rm -rf {} +
+            find $app -name "*.pyc" -delete
+            find $app -name ".DS_Store" -delete
+
+            tar -czf dist/${app}.tgz $app
+          done
+
+      # 4️⃣ Upload artifacts for download
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: changed-apps-packages
+          path: dist/*.tgz
