@@ -19,9 +19,9 @@ jobs:
       - name: Prepare clean app directory
         run: |
           rm -rf .git .github
-          rm -rf **/__pycache__
-          find . -name ".DS_Store" -delete
+          find . -name "__pycache__" -type d -exec rm -rf {} +
           find . -name "*.pyc" -delete
+          find . -name ".DS_Store" -delete
 
       - name: Create Splunk Cloud package
         run: |
@@ -35,4 +35,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: splunk-cloud-ui-app
-          path: dist/${APP_NAME}.tgz
+          path: dist/${{ env.APP_NAME }}.tgz
