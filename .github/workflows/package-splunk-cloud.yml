@@ -10,19 +10,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Create dist directory
-        run: mkdir -p dist
+      - uses: actions/checkout@v4
 
       - name: Package each Splunk app
-        shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
-          for app in */; do
-            app=${app%/}
+          mkdir -p dist
 
-            # Skip non-app directories
-            if [[ "$app" == ".github" || "$app" == "dist" ]]; then
+          for app in */ ; do
+            app="${app%/}"
+
+            case "$app" in
+              .github|dist)
+                continue
+                ;;
+            esac
+
+            echo "Packaging app: $app"
+
+            rm -rf "$app/.git" "$app/.github" || true
+            find "$app" -name "__pycache__" -type d -exec rm -rf {} + || true
+            find "$app" -name "*.pyc" -delete || true
+            find "$app" -name ".DS_Store" -delete || true
+
+            tar -czf "dist/${app}.tgz" "$app"
+          done
+
+      - name: Upload packaged apps
+        uses: actions/upload-artifact@v4
+        with:
+          name: splunk-cloud-ui-apps
+          path: dist/*.tgz
