@@ -1,13 +1,39 @@
-name: Build and Inspect
-on: [push]
+name: Multi-App Build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  build:
+  package:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: ["my_splunk_app", "my_splunk_addon", "another_app"]
+
     steps:
-      - uses: actions/checkout@v5
-      - uses: VatsalJagani/splunk-app-action@v5
+      # 1️⃣ Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # 2️⃣ Clean non-Splunk files
+      - name: Clean unnecessary files
+        run: |
+          rm -rf ${{ matrix.app }}/.git ${{ matrix.app }}/.github
+          find ${{ matrix.app }} -name "__pycache__" -type d -exec rm -rf {} +
+          find ${{ matrix.app }} -name "*.pyc" -delete
+          find ${{ matrix.app }} -name ".DS_Store" -delete
+
+      # 3️⃣ Package the app as a .tgz
+      - name: Create Splunk Cloud package
+        run: |
+          mkdir -p dist
+          tar -czf dist/${{ matrix.app }}.tgz ${{ matrix.app }}
+          echo "Packaged ${{ matrix.app }} -> dist/${{ matrix.app }}.tgz"
+
+      # 4️⃣ Upload the artifact for download
+      - name: Upload packaged app
+        uses: actions/upload-artifact@v4
         with:
-          app_dir: "my_app"
-          splunkbase_username: ${{ secrets.SPLUNKBASE_USERNAME }}
-          splunkbase_password: ${{ secrets.SPLUNKBASE_PASSWORD }}
+          name: ${{ matrix.app }}-package
+          path: dist/${{ matrix.app }}.tgz
